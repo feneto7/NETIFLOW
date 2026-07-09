@@ -13,20 +13,20 @@
     "typecheck": "tsc --noEmit",
     "seed": "npx tsx src/db/seed.ts",
     "dev:electron": "concurrently \"next dev\" \"wait-on tcp:3000 && electron .\"",
-    "build:electron": "next build && electron-builder"
+    "build:electron": "next build && node -e \"const fs = require('fs'); fs.cpSync('.next/static', '.next/standalone/.next/static', {recursive: true}); if(fs.existsSync('public')) fs.cpSync('public', '.next/standalone/public', {recursive: true});\" && electron-builder"
   },
   "build": {
     "appId": "com.cashflow.app",
     "productName": "NETIFLOW",
-    "asar": true,
+    "icon": "public/img/login.ico",
+    "asar": false,
     "directories": {
       "output": "dist"
     },
     "files": [
       ".next/standalone/**/*",
-      ".next/static/**/*",
-      "public/**/*",
       "main.js",
+      "src/db/setup.js",
       ".env.local"
     ],
     "extraMetadata": {
@@ -35,16 +35,16 @@
   },
   "dependencies": {
     "dotenv": "17.3.1",
+    "pg": "8.20.0"
+  },
+  "devDependencies": {
     "drizzle-orm": "0.45.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.23.0",
     "next": "16.2.6",
-    "pg": "8.20.0",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
-  },
-  "devDependencies": {
+    "react-dom": "19.2.6",
     "@tailwindcss/postcss": "4.1.17",
     "@types/node": "22.19.15",
     "@types/pg": "8.18.0",

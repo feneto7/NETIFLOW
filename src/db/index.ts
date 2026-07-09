@@ -1,8 +1,12 @@
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 
-// Force .env.local to override any system-level DATABASE_URL
-dotenv.config({ path: path.resolve(process.cwd(), ".env.local"), override: true });
+const envPath = process.env.NEXT_ENV_PATH || (fs.existsSync(path.resolve(process.cwd(), ".env.local")) 
+  ? path.resolve(process.cwd(), ".env.local")
+  : path.join(__dirname, "../../../.env.local"));
+
+dotenv.config({ path: envPath, override: true });
 
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";

@@ -5,6 +5,8 @@ import { db } from "@/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { Pool } from "pg";
+import fs from "fs";
+import path from "path";
 
 const EXTERNAL_DB_KEY = "external_db_name";
 
@@ -28,12 +30,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "dbName is required" }, { status: 400 });
   }
 
+  const dbUrl = new URL(process.env.DATABASE_URL || "");
+  const dbPassword = dbUrl.password;
+
   // Testar conexão com o banco externo antes de salvar
   const testPool = new Pool({
     host: "127.0.0.1",
     port: 5432,
     user: "postgres",
-    password: "2011ThaylaLunaMel2013",
+    password: dbPassword,
     database: dbName.trim(),
   });
 
@@ -51,7 +56,7 @@ export async function POST(req: Request) {
     await testPool.end();
   }
 
-  // Salvar configuração
+  // Salvar configuração no banco
   await db
     .insert(settings)
     .values({ key: EXTERNAL_DB_KEY, value: dbName.trim() })
@@ -59,6 +64,15 @@ export async function POST(req: Request) {
       target: settings.key,
       set: { value: dbName.trim() },
     });
+
+  // Salvar num arquivo config.txt na raiz da instalação
+  try {
+    const installDir = process.env.INSTALL_DIR || process.cwd();
+    const configPath = path.join(installDir, "config.txt");
+    fs.writeFileSync(configPath, `EXTERNAL_DB_NAME=${dbName.trim()}\n`, "utf8");
+  } catch (err) {
+    console.error("Erro ao gravar config.txt:", err);
+  }
 
   return NextResponse.json({ ok: true, dbName: dbName.trim() });
 }

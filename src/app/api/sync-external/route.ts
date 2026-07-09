@@ -36,12 +36,15 @@ export async function POST() {
     );
   }
 
+  const dbUrl = new URL(process.env.DATABASE_URL || "");
+  const dbPassword = dbUrl.password;
+
   // 3. Conectar ao banco externo
   const extPool = new Pool({
     host: "127.0.0.1",
     port: 5432,
     user: "postgres",
-    password: "2011ThaylaLunaMel2013",
+    password: dbPassword,
     database: externalDbName,
   });
 
@@ -122,7 +125,11 @@ export async function POST() {
     }
 
     if (valuesToInsert.length > 0) {
-      await db.insert(transactions).values(valuesToInsert);
+      const CHUNK_SIZE = 1000;
+      for (let i = 0; i < valuesToInsert.length; i += CHUNK_SIZE) {
+        const chunk = valuesToInsert.slice(i, i + CHUNK_SIZE);
+        await db.insert(transactions).values(chunk);
+      }
     }
 
     return NextResponse.json({
