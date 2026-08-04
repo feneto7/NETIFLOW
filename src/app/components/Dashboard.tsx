@@ -20,6 +20,7 @@ import {
   Database,
   RefreshCw,
   Printer,
+  UserPlus,
 } from "lucide-react";
 import { formatBRL, formatDate, formatCurrencyInput, parseCurrency } from "@/lib/format";
 import { generateMonthPDF } from "@/lib/pdf";
@@ -30,6 +31,7 @@ import { InitialBalanceModal } from "./modals/InitialBalanceModal";
 import { TypesModal } from "./modals/TypesModal";
 import { NewTransactionModal } from "./modals/NewTransactionModal";
 import { ExternalDbModal } from "./modals/ExternalDbModal";
+import { NewUserModal } from "./modals/NewUserModal";
 
 function formatMonthLabel(monthKey: string): string {
   const [year, month] = monthKey.split("-").map(Number);
@@ -56,6 +58,7 @@ export default function Dashboard() {
   const [showNewTransactionModal, setShowNewTransactionModal] = useState(false);
   const [showTypesModal, setShowTypesModal] = useState(false);
   const [showExternalDbModal, setShowExternalDbModal] = useState(false);
+  const [showNewUserModal, setShowNewUserModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -248,6 +251,14 @@ export default function Dashboard() {
               >
                 <Database className="w-4 h-4 text-cyan-400" />
                 <span className="hidden sm:inline">Banco Externo</span>
+              </button>
+              <button
+                onClick={() => setShowNewUserModal(true)}
+                className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                title="Novo Usuário"
+              >
+                <UserPlus className="w-4 h-4 text-blue-400" />
+                <span className="hidden sm:inline">Usuário</span>
               </button>
               <button
                 onClick={() => setShowTypesModal(true)}
@@ -607,6 +618,9 @@ export default function Dashboard() {
       )}
       {showExternalDbModal && (
         <ExternalDbModal onClose={() => setShowExternalDbModal(false)} />
+      )}
+      {showNewUserModal && (
+        <NewUserModal onClose={() => setShowNewUserModal(false)} />
       )}
     </div>
   );

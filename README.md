@@ -55,7 +55,9 @@ npm run dev
   ```bash
   npm run seed
   ```
-- **Fazer Build (Produção)**:
+- **Gerar Instalador (.exe) para Windows (Produção)**:
+  Para criar o executável do projeto (instalador Windows), execute o comando abaixo.
   ```bash
   npm run build:electron
   ```
+  > O arquivo instalador `.exe` será gerado dentro da pasta `dist/` na raiz do projeto.

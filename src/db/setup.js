@@ -53,6 +53,16 @@ async function setupDatabase() {
     await clientApp.connect();
 
     console.log("🏗️  Criando tabelas (se não existirem)...");
+    
+    await clientApp.query(`
+      CREATE TABLE IF NOT EXISTS "users" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "username" text UNIQUE NOT NULL,
+        "password" text NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
     await clientApp.query(`
       CREATE TABLE IF NOT EXISTS "settings" (
         "key" text PRIMARY KEY NOT NULL,
@@ -104,6 +114,15 @@ async function setupDatabase() {
       console.log("  ✅ Tipo 'Contas' (saída) criado");
     } else {
       console.log("  ⏭️  Tipo 'Contas' (saída) já existe");
+    }
+
+    // Seed usuário suporte
+    const userRes = await clientApp.query(`SELECT 1 FROM "users" WHERE "username" = 'suporte' LIMIT 1`);
+    if (userRes.rowCount === 0) {
+      await clientApp.query(`INSERT INTO "users" ("username", "password") VALUES ('suporte', 'net@inove')`);
+      console.log("  ✅ Usuário padrão 'suporte' configurado");
+    } else {
+      console.log("  ⏭️  Usuário 'suporte' já configurado");
     }
 
     console.log("🎉 Setup completo!");

@@ -1,5 +1,13 @@
 import { pgTable, text, numeric, timestamp, serial, integer, boolean } from "drizzle-orm/pg-core";
 
+// Tabela de usuários para autenticação
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Configurações do sistema (chave-valor)
 // Chaves utilizadas: 'initial_balance'
 export const settings = pgTable("settings", {
