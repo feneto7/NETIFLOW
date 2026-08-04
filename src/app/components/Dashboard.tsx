@@ -21,10 +21,12 @@ import {
   RefreshCw,
   Printer,
   UserPlus,
+  LogOut,
 } from "lucide-react";
 import { formatBRL, formatDate, formatCurrencyInput, parseCurrency } from "@/lib/format";
 import { generateMonthPDF } from "@/lib/pdf";
 import { printReceipt } from "@/lib/printReceipt";
+import { logout } from "@/app/actions/auth";
 
 import { TransactionType, MonthData } from "@/types";
 import { InitialBalanceModal } from "./modals/InitialBalanceModal";
@@ -292,6 +294,14 @@ export default function Dashboard() {
                 <kbd className="hidden md:inline-flex items-center justify-center ml-1 px-1.5 py-0.5 text-[10px] font-mono font-bold bg-emerald-700/30 text-emerald-100 rounded border border-emerald-600/50">
                   F2
                 </kbd>
+              </button>
+              <button
+                onClick={() => logout()}
+                className="flex items-center gap-2 bg-zinc-900 hover:bg-red-500/10 border border-zinc-800 hover:border-red-500/30 text-zinc-200 hover:text-red-400 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                title="Sair da conta"
+              >
+                <LogOut className="w-4 h-4 text-red-400" />
+                <span className="hidden sm:inline">Sair</span>
               </button>
             </div>
           </div>
