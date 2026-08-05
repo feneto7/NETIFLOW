@@ -193,7 +193,7 @@ function createWindow(port) {
 function findOpenPort(startPort) {
   return new Promise((resolve) => {
     const server = require("net").createServer();
-    server.listen(startPort, () => {
+    server.listen(startPort, "127.0.0.1", () => {
       const port = server.address().port;
       server.close(() => resolve(port));
     });
