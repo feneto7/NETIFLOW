@@ -42,9 +42,10 @@ async function setupDatabase() {
     }
   } catch (error) {
     console.error("❌ Erro ao verificar/criar banco de dados:", error);
-    process.exit(1);
+    try { await clientMaster.end(); } catch (_) {}
+    throw error;
   } finally {
-    await clientMaster.end();
+    try { await clientMaster.end(); } catch (_) {}
   }
 
   // 2. Conectar no banco alvo para criar tabelas e inserir seeds
@@ -129,9 +130,10 @@ async function setupDatabase() {
 
   } catch (error) {
     console.error("❌ Erro ao configurar tabelas/seeds:", error);
-    process.exit(1);
+    try { await clientApp.end(); } catch (_) {}
+    throw error;
   } finally {
-    await clientApp.end();
+    try { await clientApp.end(); } catch (_) {}
   }
 }
 
