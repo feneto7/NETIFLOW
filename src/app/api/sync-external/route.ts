@@ -52,12 +52,23 @@ export async function POST() {
     const client = await extPool.connect();
 
     // ==========================================
-    // SINCRONIZAR NFC-E (Entradas)
+    // SINCRONIZAR NFC-E (Entradas) — somente pagamentos em DINHEIRO (cod_forma_pg = 2)
     // ==========================================
     const nfceResult = await client.query(
-      `SELECT id, dataautorizacao, valor
-       FROM public.nfce
-       WHERE status = 'AUTORIZADO' AND ambiente = 'PRODUCAO'`
+      `SELECT
+         s.cod_saida,
+         s.data_saida,
+         s.valor_pago,
+         n.chaveacesso
+       FROM public.saida s
+       INNER JOIN public.saida_fpg f
+         ON f.cod_saida = s.cod_saida
+       INNER JOIN public.nfce n
+         ON n.cod_saida = s.cod_saida
+       WHERE
+         n.ambiente = 'PRODUCAO'
+         AND n.status = 'AUTORIZADO'
+         AND f.cod_forma_pg = 2`
     );
     const nfces = nfceResult.rows;
 
@@ -66,8 +77,9 @@ export async function POST() {
       .from(transactions)
       .where(eq(transactions.externalSource, "nfce"));
     const existingNfceIds = new Set(existingNfceRows.map((r) => r.externalId));
-    
-    const newNfces = nfces.filter((n) => !existingNfceIds.has(String(n.id)));
+
+    // Usa cod_saida como chave de deduplicação
+    const newNfces = nfces.filter((n) => !existingNfceIds.has(String(n.cod_saida)));
 
     // ==========================================
     // SINCRONIZAR CONTAS A PAGAR (Saídas)
@@ -95,16 +107,16 @@ export async function POST() {
 
     const valuesToInsert: any[] = [];
 
-    // Preparar inserções NFC-e
+    // Preparar inserções NFC-e (pagamentos em dinheiro)
     for (const n of newNfces) {
-      const date = new Date(n.dataautorizacao);
+      const date = new Date(n.data_saida);
       valuesToInsert.push({
         type: "in",
         typeId: nfceType.id,
-        amount: String(Number(n.valor)),
+        amount: String(Number(n.valor_pago)),
         transactionDate: date,
         confirmationDate: date,
-        externalId: String(n.id),
+        externalId: String(n.cod_saida),
         externalSource: "nfce",
       });
     }
