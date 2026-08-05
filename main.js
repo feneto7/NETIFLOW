@@ -4,6 +4,7 @@ const fs = require("fs");
 const isDev = !app.isPackaged;
 const { fork } = require("child_process");
 const http = require("http");
+const { autoUpdater } = require("electron-updater");
 
 // ─── Logging ─────────────────────────────────────────────────────────────────
 function writeLog(message) {
@@ -200,9 +201,54 @@ function findOpenPort(startPort) {
   });
 }
 
+// ─── Auto Updater ─────────────────────────────────────────────────────────────
+function setupAutoUpdater() {
+  if (isDev) return;
+  
+  autoUpdater.autoDownload = false;
+  
+  autoUpdater.on("update-available", (info) => {
+    dialog.showMessageBox({
+      type: "info",
+      title: "Atualização Disponível",
+      message: `Uma nova versão do NETIFLOW (${info.version}) está disponível. Deseja baixar agora?`,
+      buttons: ["Sim", "Não"]
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.downloadUpdate();
+      }
+    });
+  });
+
+  autoUpdater.on("update-downloaded", () => {
+    dialog.showMessageBox({
+      type: "info",
+      title: "Atualização Pronta",
+      message: "A atualização foi baixada. O aplicativo será reiniciado para instalar a nova versão.",
+      buttons: ["Reiniciar e Instalar", "Mais tarde"]
+    }).then((result) => {
+      if (result.response === 0) {
+        isQuitting = true;
+        autoUpdater.quitAndInstall(false, true);
+      }
+    });
+  });
+
+  autoUpdater.on("error", (err) => {
+    writeLog("AutoUpdater Error: " + err);
+  });
+
+  // Aguarda 5 segundos antes de checar para não pesar na inicialização
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify();
+  }, 5000);
+}
+
 // ─── App Ready ───────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
   writeLog("=== NETIFLOW Starting (isDev=" + isDev + ") ===");
+
+  setupAutoUpdater();
 
   // Show loading screen immediately
   if (!isDev) {
