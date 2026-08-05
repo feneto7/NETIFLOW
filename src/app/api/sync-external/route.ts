@@ -58,17 +58,20 @@ export async function POST() {
       `SELECT
          s.cod_saida,
          s.data_saida,
-         s.valor_pago,
+         s.total_saida,
+         fp.forma_pg,
+         n.numero AS numero_nfce,
          n.chaveacesso
        FROM public.saida s
-       INNER JOIN public.saida_fpg f
-         ON f.cod_saida = s.cod_saida
-       INNER JOIN public.nfce n
+       JOIN public.nfce n
          ON n.cod_saida = s.cod_saida
-       WHERE
-         n.ambiente = 'PRODUCAO'
+       JOIN public.saida_fpg sf
+         ON sf.cod_saida = s.cod_saida
+       JOIN public.forma_pgto fp
+         ON fp.cod_forma_pgto = sf.cod_forma_pg
+       WHERE n.ambiente = 'PRODUCAO'
          AND n.status = 'AUTORIZADO'
-         AND f.cod_forma_pg = 2`
+         AND sf.cod_forma_pg = 2`
     );
     const nfces = nfceResult.rows;
 
@@ -113,7 +116,7 @@ export async function POST() {
       valuesToInsert.push({
         type: "in",
         typeId: nfceType.id,
-        amount: String(Number(n.valor_pago)),
+        amount: String(Number(n.total_saida)),
         transactionDate: date,
         confirmationDate: date,
         externalId: String(n.cod_saida),
