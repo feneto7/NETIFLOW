@@ -120,8 +120,11 @@ async function setupDatabase() {
     // Seed usuário suporte
     const userRes = await clientApp.query(`SELECT 1 FROM "users" WHERE "username" = 'suporte' LIMIT 1`);
     if (userRes.rowCount === 0) {
-      await clientApp.query(`INSERT INTO "users" ("username", "password") VALUES ('suporte', 'net@inove')`);
-      console.log("  ✅ Usuário padrão 'suporte' configurado");
+      // A senha padrão gerada aqui é 'net@inove' mas está sendo inserida
+      // como um hash bcrypt pré-calculado para evitar texto plano no código-fonte.
+      const defaultHash = '$2b$10$o0fTjiKLd6cR0W5Z14sRg.oTrrCkUzW0jipVjgewBI87NIEdX1OT.';
+      await clientApp.query(`INSERT INTO "users" ("username", "password") VALUES ('suporte', $1)`, [defaultHash]);
+      console.log("  ✅ Usuário padrão 'suporte' configurado (com senha criptografada)");
     } else {
       console.log("  ⏭️  Usuário 'suporte' já configurado");
     }

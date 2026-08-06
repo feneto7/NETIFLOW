@@ -3,6 +3,7 @@
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 
 export async function createUser(formData: FormData) {
   const username = formData.get("username") as string;
@@ -12,10 +13,18 @@ export async function createUser(formData: FormData) {
     return { error: "Usuário e senha são obrigatórios." };
   }
 
+  // Validação de segurança básica da senha (min 8 caracteres)
+  if (password.length < 8) {
+    return { error: "A senha deve ter pelo menos 8 caracteres." };
+  }
+
   try {
+    // Hash da senha com cost factor 10 (padrão seguro e performático para a maioria dos casos)
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     await db.insert(users).values({
       username,
-      password,
+      password: hashedPassword,
     });
     
     // Revalidar rotas caso necessário

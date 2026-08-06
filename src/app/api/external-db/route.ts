@@ -7,10 +7,14 @@ import { eq } from "drizzle-orm";
 import { Pool } from "pg";
 import fs from "fs";
 import path from "path";
+import { requireAuth } from "@/lib/session";
 
 const EXTERNAL_DB_KEY = "external_db_name";
 
 export async function GET() {
+  const authRes = await requireAuth();
+  if (authRes) return authRes;
+
   const [row] = await db
     .select()
     .from(settings)
@@ -23,11 +27,20 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const authRes = await requireAuth();
+  if (authRes) return authRes;
+
   const body = await req.json();
   const { dbName } = body;
 
   if (!dbName || typeof dbName !== "string") {
     return NextResponse.json({ error: "dbName is required" }, { status: 400 });
+  }
+
+  // Validação estrita contra SQL Injection
+  const cleanDbName = dbName.trim();
+  if (!/^[a-zA-Z_][a-zA-Z0-9_$]*$/.test(cleanDbName)) {
+    return NextResponse.json({ error: "Nome de banco de dados inválido" }, { status: 400 });
   }
 
   const dbUrl = new URL(process.env.DATABASE_URL || "");
@@ -39,7 +52,7 @@ export async function POST(req: Request) {
     port: 5432,
     user: "postgres",
     password: dbPassword,
-    database: dbName.trim(),
+    database: cleanDbName,
   });
 
   try {
@@ -49,7 +62,7 @@ export async function POST(req: Request) {
   } catch (e) {
     await testPool.end();
     return NextResponse.json(
-      { error: `Não foi possível conectar ao banco "${dbName}". Verifique o nome.` },
+      { error: `Não foi possível conectar ao banco "${cleanDbName}". Verifique o nome.` },
       { status: 400 }
     );
   } finally {
@@ -59,20 +72,20 @@ export async function POST(req: Request) {
   // Salvar configuração no banco
   await db
     .insert(settings)
-    .values({ key: EXTERNAL_DB_KEY, value: dbName.trim() })
+    .values({ key: EXTERNAL_DB_KEY, value: cleanDbName })
     .onConflictDoUpdate({
       target: settings.key,
-      set: { value: dbName.trim() },
+      set: { value: cleanDbName },
     });
 
   // Salvar num arquivo config.txt na raiz da instalação
   try {
     const installDir = process.env.INSTALL_DIR || process.cwd();
     const configPath = path.join(installDir, "config.txt");
-    fs.writeFileSync(configPath, `EXTERNAL_DB_NAME=${dbName.trim()}\n`, "utf8");
+    fs.writeFileSync(configPath, `EXTERNAL_DB_NAME=${cleanDbName}\n`, "utf8");
   } catch (err) {
     console.error("Erro ao gravar config.txt:", err);
   }
 
-  return NextResponse.json({ ok: true, dbName: dbName.trim() });
+  return NextResponse.json({ ok: true, dbName: cleanDbName });
 }

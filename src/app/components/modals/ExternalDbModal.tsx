@@ -73,10 +73,7 @@ export function ExternalDbModal({ onClose }: { onClose: () => void }) {
             className="w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 outline-none transition"
             placeholder="ex: cazenda"
           />
-          <p className="text-xs text-zinc-500 mt-2">
-            Nome do banco PostgreSQL local que contém a tabela <code className="text-zinc-400">nfce</code>.
-            Conexão: <code className="text-zinc-400">127.0.0.1:5432</code>
-          </p>
+
         </div>
 
         {feedback && (

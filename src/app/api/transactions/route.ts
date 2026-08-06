@@ -2,13 +2,17 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { transactions, transactionTypes, settings } from "@/db/schema";
 import { and, eq, asc, desc, sql, lt, gt, inArray } from "drizzle-orm";
+import { requireAuth } from "@/lib/session";
 
 export async function GET(req: Request) {
+  const authRes = await requireAuth();
+  if (authRes) return authRes;
   const { searchParams } = new URL(req.url);
   const monthParam = searchParams.get("month");
   const pageParam = searchParams.get("page");
 
-  const page = pageParam ? parseInt(pageParam, 10) : 0;
+  const isAll = pageParam === "all";
+  const page = pageParam && !isAll ? parseInt(pageParam, 10) : 0;
 
   // Determinar mês selecionado
   const now = new Date();
@@ -87,11 +91,49 @@ export async function GET(req: Request) {
     + Number(monthTotalsResult[0]?.totalIn || 0) 
     - Number(monthTotalsResult[0]?.totalOut || 0);
 
-  // 3. Buscar as transações apenas do dia solicitado (página)
+  // 3. Buscar as transações
   let dayTransactions: any[] = [];
   let dayStartBalance = globalInitialBalance;
 
-  if (availableDays.length > 0 && page >= 0 && page < availableDays.length) {
+  if (isAll) {
+    const rawMonthTxs = await db
+      .select({
+        id: transactions.id,
+        type: transactions.type,
+        typeId: transactions.typeId,
+        amount: transactions.amount,
+        transactionDate: transactions.transactionDate,
+        confirmationDate: transactions.confirmationDate,
+        active: transactions.active,
+        createdAt: transactions.createdAt,
+        typeName: transactionTypes.name,
+        externalSource: transactions.externalSource,
+      })
+      .from(transactions)
+      .leftJoin(transactionTypes, eq(transactions.typeId, transactionTypes.id))
+      .where(and(
+        eq(sql`TO_CHAR(DATE(${transactions.confirmationDate}), 'YYYY-MM')`, selectedMonthKey),
+        cutoffCondition
+      ))
+      .orderBy(asc(transactions.confirmationDate), asc(transactions.createdAt));
+
+    let runningBalance = monthStartBalance;
+    const computedTxs = rawMonthTxs.map((t) => {
+      const amt = parseFloat(t.amount as string);
+      if (t.active) {
+        if (t.type === "in") runningBalance += amt;
+        else runningBalance -= amt;
+      }
+      return {
+        ...t,
+        amount: amt,
+        balance: Math.round(runningBalance * 100) / 100,
+      };
+    });
+
+    dayTransactions = computedTxs.reverse();
+    
+  } else if (availableDays.length > 0 && page >= 0 && page < availableDays.length) {
     const selectedDayString = availableDays[page];
 
     const beforeDayResult = await db
@@ -120,6 +162,7 @@ export async function GET(req: Request) {
         active: transactions.active,
         createdAt: transactions.createdAt,
         typeName: transactionTypes.name,
+        externalSource: transactions.externalSource,
       })
       .from(transactions)
       .leftJoin(transactionTypes, eq(transactions.typeId, transactionTypes.id))
@@ -160,30 +203,55 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const authRes = await requireAuth();
+  if (authRes) return authRes;
+  
   const body = await req.json();
   const { type, typeId, amount, transactionDate, confirmationDate } = body;
 
   if (!type || !["in", "out"].includes(type)) {
     return NextResponse.json({ error: "invalid type" }, { status: 400 });
   }
-  if (!amount || Number(amount) <= 0) {
+
+  const numAmount = Number(amount);
+  if (!amount || isNaN(numAmount) || numAmount <= 0 || numAmount > 999999999) {
     return NextResponse.json({ error: "invalid amount" }, { status: 400 });
   }
-  if (!transactionDate) {
-    return NextResponse.json({ error: "transactionDate required" }, { status: 400 });
+
+  const parsedTxDate = new Date(transactionDate);
+  if (!transactionDate || isNaN(parsedTxDate.getTime())) {
+    return NextResponse.json({ error: "transactionDate required/invalid" }, { status: 400 });
   }
-  if (!confirmationDate) {
-    return NextResponse.json({ error: "confirmationDate required" }, { status: 400 });
+
+  const parsedConfDate = new Date(confirmationDate);
+  if (!confirmationDate || isNaN(parsedConfDate.getTime())) {
+    return NextResponse.json({ error: "confirmationDate required/invalid" }, { status: 400 });
+  }
+
+  let finalTypeId = null;
+  if (typeId) {
+    const parsedTypeId = Number(typeId);
+    // Verificar existência do typeId
+    const [existingType] = await db
+      .select()
+      .from(transactionTypes)
+      .where(eq(transactionTypes.id, parsedTypeId))
+      .limit(1);
+
+    if (!existingType || existingType.type !== type) {
+      return NextResponse.json({ error: "invalid typeId" }, { status: 400 });
+    }
+    finalTypeId = parsedTypeId;
   }
 
   const [row] = await db
     .insert(transactions)
     .values({
       type,
-      typeId: typeId ? Number(typeId) : null,
-      amount: String(amount),
-      transactionDate: new Date(transactionDate),
-      confirmationDate: new Date(confirmationDate),
+      typeId: finalTypeId,
+      amount: String(numAmount),
+      transactionDate: parsedTxDate,
+      confirmationDate: parsedConfDate,
     })
     .returning();
 
@@ -191,9 +259,18 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const authRes = await requireAuth();
+  if (authRes) return authRes;
+  
   const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  await db.update(transactions).set({ active: false }).where(eq(transactions.id, Number(id)));
+  const idParam = searchParams.get("id");
+  const id = parseInt(idParam || "", 10);
+
+  if (isNaN(id) || id <= 0) {
+    return NextResponse.json({ error: "invalid id" }, { status: 400 });
+  }
+
+  await db.update(transactions).set({ active: false }).where(eq(transactions.id, id));
   return NextResponse.json({ ok: true });
 }
+

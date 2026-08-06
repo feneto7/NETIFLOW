@@ -6,6 +6,7 @@ type Transaction = {
   id: number;
   type: "in" | "out";
   typeName: string | null;
+  externalSource?: string | null;
   amount: number;
   balance: number;
   transactionDate: string;
@@ -68,13 +69,29 @@ export function generateMonthPDF(data: MonthData) {
   // Tabela de lançamentos (ordenada cronologicamente ASC para o relatório)
   const sortedTransactions = [...data.transactions].reverse();
 
-  const tableData = sortedTransactions.map((t) => {
-    const tipo = t.type === "in" ? "Entrada" : "Saída";
+  const tableData: any[] = [];
+  let currentDate = "";
+
+  sortedTransactions.forEach((t) => {
     const dataConfirmacao = formatDate(t.confirmationDate);
+    
+    // Insere uma linha separadora sempre que a data mudar
+    if (dataConfirmacao !== currentDate) {
+      currentDate = dataConfirmacao;
+      tableData.push([{
+        content: `Movimentações do dia: ${currentDate}`,
+        colSpan: 5,
+        styles: { fillColor: [235, 235, 240], textColor: [30, 30, 30], fontStyle: "bold", halign: "center" }
+      }]);
+    }
+
+    const source = t.externalSource ? String(t.externalSource).toUpperCase() : null;
+    const tipoLabel = t.typeName || source || (t.type === "in" ? "Entrada" : "Saída");
+    
     const entrada = t.type === "in" ? formatBRL(t.amount) : "";
     const saida = t.type === "out" ? formatBRL(t.amount) : "";
     const saldoFinal = formatBRL(t.balance);
-    return [tipo, dataConfirmacao, entrada, saida, saldoFinal];
+    tableData.push([tipoLabel, dataConfirmacao, entrada, saida, saldoFinal]);
   });
 
   autoTable(doc, {
@@ -106,25 +123,33 @@ export function generateMonthPDF(data: MonthData) {
     },
     didParseCell: (hookData) => {
       // Pintar tipo Entrada em verde e Saída em vermelho
-      if (hookData.section === "body" && hookData.column.index === 0) {
-        const valor = hookData.cell.raw as string;
-        if (valor === "Entrada") {
-          hookData.cell.styles.textColor = [16, 185, 129];
-          hookData.cell.styles.fontStyle = "bold";
-        } else if (valor === "Saída") {
-          hookData.cell.styles.textColor = [239, 68, 68];
-          hookData.cell.styles.fontStyle = "bold";
-        }
-      }
-      // Pintar coluna de valor (entrada ou saída) na mesma cor
       if (hookData.section === "body") {
-        const row = hookData.row.raw as string[];
-        const tipo = row[0];
-        if (hookData.column.index === 2 && tipo === "Entrada") {
+        const row = hookData.row.raw as any[];
+        // Verifica se é uma linha de separação (agrupamento de datas tem colSpan)
+        if (row.length === 1 && typeof row[0] === 'object' && row[0].colSpan) return;
+
+        const entradaStr = row[2] as string;
+        const saidaStr = row[3] as string;
+        const isEntrada = entradaStr && entradaStr.trim() !== "";
+        const isSaida = saidaStr && saidaStr.trim() !== "";
+
+        // Pintar a primeira coluna (Nome do Tipo) de acordo com entrada/saída
+        if (hookData.column.index === 0) {
+          if (isEntrada) {
+            hookData.cell.styles.textColor = [16, 185, 129];
+            hookData.cell.styles.fontStyle = "bold";
+          } else if (isSaida) {
+            hookData.cell.styles.textColor = [239, 68, 68];
+            hookData.cell.styles.fontStyle = "bold";
+          }
+        }
+
+        // Pintar a coluna de valor
+        if (hookData.column.index === 2 && isEntrada) {
           hookData.cell.styles.textColor = [16, 185, 129];
           hookData.cell.styles.fontStyle = "bold";
         }
-        if (hookData.column.index === 3 && tipo === "Saída") {
+        if (hookData.column.index === 3 && isSaida) {
           hookData.cell.styles.textColor = [239, 68, 68];
           hookData.cell.styles.fontStyle = "bold";
         }

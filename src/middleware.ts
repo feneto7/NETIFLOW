@@ -10,6 +10,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  // Se o frontend detectar token inválido e redirecionar com ?expired=1
+  if (request.nextUrl.searchParams.has("expired")) {
+    const response = NextResponse.next();
+    response.cookies.delete("auth_session");
+    return response;
+  }
+
   // Se estiver logado e tentar acessar o login, redireciona para a raiz
   if (authSession && isLoginPage) {
     return NextResponse.redirect(new URL("/", request.url));

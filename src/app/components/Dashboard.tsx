@@ -67,9 +67,19 @@ export default function Dashboard() {
   const [showInactive, setShowInactive] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
 
-  function handleGenerateReport() {
+  async function handleGenerateReport() {
     if (!data) return;
-    generateMonthPDF(data);
+    try {
+      const res = await fetch(`/api/transactions?month=${selectedMonth}&page=all`);
+      if (res.status === 401) {
+        window.location.href = "/login?expired=1";
+        return;
+      }
+      const allData: MonthData = await res.json();
+      generateMonthPDF(allData);
+    } catch (e) {
+      console.error("Error generating report:", e);
+    }
   }
 
   const loadTypes = useCallback(async () => {
@@ -86,6 +96,10 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const res = await fetch(`/api/transactions?month=${month}&page=${page}`);
+      if (res.status === 401) {
+        window.location.href = "/login?expired=1";
+        return;
+      }
       const json: MonthData = await res.json();
       setData(json);
     } catch (e) {

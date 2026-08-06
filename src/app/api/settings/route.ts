@@ -4,11 +4,15 @@ export const dynamic = "force-dynamic";
 import { db } from "@/db";
 import { settings } from "@/db/schema";
 import { inArray } from "drizzle-orm";
+import { requireAuth } from "@/lib/session";
 
 const INITIAL_BALANCE_KEY = "initial_balance";
 const INITIAL_BALANCE_DATE_KEY = "initial_balance_date";
 
 export async function GET() {
+  const authRes = await requireAuth();
+  if (authRes) return authRes;
+
   const rows = await db
     .select()
     .from(settings)
@@ -29,6 +33,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const authRes = await requireAuth();
+  if (authRes) return authRes;
+
   const body = await req.json();
   const { initialBalance, initialBalanceDate } = body;
 

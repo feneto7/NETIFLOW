@@ -6,7 +6,11 @@ import { Pool } from "pg";
 
 const EXTERNAL_DB_KEY = "external_db_name";
 
+import { requireAuth } from "@/lib/session";
+
 export async function POST() {
+  const authRes = await requireAuth();
+  if (authRes) return authRes;
   // 1. Ler o nome do banco externo da configuração
   const [setting] = await db
     .select()
@@ -154,7 +158,7 @@ export async function POST() {
   } catch (e: any) {
     console.error("Sync external error:", e);
     return NextResponse.json(
-      { error: `Erro na sincronização: ${e.message}` },
+      { error: "Erro na sincronização. Verifique os logs do servidor para mais detalhes." },
       { status: 500 }
     );
   } finally {
